@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Coach Allemand IA</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text: #1e293b;
+        }
+        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg); color: var(--text); margin: 0; padding: 16px; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 500px; }
+        h1 { font-size: 1.4rem; text-align: center; margin-bottom: 16px; color: var(--primary); }
+        .card { background: var(--card); border-radius: 16px; padding: 18px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 16px; }
+        label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; }
+        input[type="password"], textarea {
+            width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px;
+            font-size: 1rem; margin-bottom: 12px; background: #fff;
+        }
+        textarea { resize: vertical; min-height: 100px; }
+        button {
+            width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 1rem;
+            font-weight: 600; cursor: pointer; transition: transform 0.1s, background-color 0.2s;
+        }
+        button:active { transform: scale(0.98); }
+        .btn-primary { background-color: var(--primary); color: white; }
+        .btn-primary:disabled { background-color: #94a3b8; cursor: not-allowed; }
+        .btn-record { background-color: var(--success); color: white; font-size: 1.1rem; padding: 18px; }
+        .btn-record.recording { background-color: var(--danger); animation: pulse 1.5s infinite; }
+        .btn-secondary { background-color: #e2e8f0; color: var(--text); margin-top: 10px; }
+        
+        .progress { font-size: 0.85rem; color: #64748b; text-align: center; margin-bottom: 8px; font-weight: 600; }
+        .sentence-box {
+            font-size: 1.25rem; font-weight: 700; text-align: center; padding: 20px 10px;
+            background: #eff6ff; border-radius: 12px; margin-bottom: 16px; border: 1px solid #bfdbfe;
+        }
+        .feedback-box {
+            margin-top: 16px; padding: 14px; border-radius: 12px; background: #f1f5f9;
+            font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; display: none;
+        }
+        .loader { text-align: center; color: var(--primary); font-weight: 600; margin: 12px 0; display: none; }
+        .hidden { display: none; }
+        .settings-toggle { text-align: right; font-size: 0.85rem; color: var(--primary); cursor: pointer; margin-bottom: 8px; text-decoration: underline; }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6); }
+            70% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🇩🇪 Entraîneur Allemand IA</h1>
+
+    <!-- ÉCRAN DE CONSIGNE -->
+    <div id="setup-card" class="card">
+        <div id="key-container">
+            <label for="api-key">Clé API Google AI Studio (sauvegardée sur ce téléphone) :</label>
+            <input type="password" id="api-key" placeholder="Collez votre clé AIzaSy...">
+        </div>
+
+        <label for="prompt-input">Votre consigne de génération :</label>
+        <textarea id="prompt-input">Génère 10 phrases de la vie de tous les jours en français qui nécessitent d'utiliser en allemand les mots "normalerweise", "grundsätzlich" ou "eigentlich" selon le contexte, afin de bien apprendre leurs nuances.</textarea>
+
+        <button id="generate-btn" class="btn-primary" onclick="generateSentences()">Générer les 10 phrases</button>
+        <div id="gen-loader" class="loader">Génération des phrases en cours...</div>
+    </div>
+
+    <!-- ÉCRAN D'ENTRAÎNEMENT -->
+    <div id="practice-card" class="card hidden">
+        <div class="settings-toggle" onclick="resetApp()">⚙️ Changer la consigne / Clé</div>
+        <div class="progress" id="progress-text">Phrase 1 / 10</div>
+        
+        <div class="sentence-box" id="french-sentence">...</div>
+
+        <button id="record-btn" class="btn-record" onclick="toggleRecording()">🎙️ Appuyer pour répondre en allemand</button>
+        <div id="eval-loader" class="loader">Écoute et analyse par Gemini...</div>
+
+        <div id="feedback-box" class="feedback-box"></div>
+
+        <button id="next-btn" class="btn-secondary hidden" onclick="nextSentence()">Phrase suivante ➡️</button>
+    </div>
+</div>
+
+<script>
+    let ACTIVE_MODEL = "gemini-3.8-flash"; 
+    let sentences = [];
+    let currentIndex = 0;
+    let mediaRecorder;
+    let audioChunks = [];
+    let isRecording = false;
+
+    window.onload = () => {
+        const savedKey = localStorage.getItem("gemini_api_key");
+        if (savedKey) {
+            document.getElementById("api-key").value = savedKey;
+            // Masquer le champ de clé une fois enregistrée pour alléger l'écran
+            document.getElementById("key-container").classList.add("hidden");
+        }
+    };
+
+    function resetApp() {
+        document.getElementById("practice-card").classList.add("hidden");
+        document.getElementById("setup-card").classList.remove("hidden");
+        document.getElementById("key-container").classList.remove("hidden");
+    }
+
+    function getApiKey() {
+        const inputVal = document.getElementById("api-key").value.trim();
+        if (inputVal) {
+            localStorage.setItem("gemini_api_key", inputVal);
+            return inputVal;
+        }
+        return localStorage.getItem("gemini_api_key");
+    }
+
+    async function findValidFlashModel(apiKey) {
+        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const data = await res.json();
+        if (data.error) throw new Error(data.error.message);
+        const flashModel = data.models.find(m => 
+            m.name.includes("flash") && 
+            m.supportedGenerationMethods && 
+            m.supportedGenerationMethods.includes("generateContent")
+        );
+        if (!flashModel) throw new Error("Aucun modèle Flash trouvé sur votre clé API.");
+        return flashModel.name.replace("models/", "");
+    }
+
+    async function callGemini(payload) {
+        const apiKey = getApiKey();
+        let url = `https://generativelanguage.googleapis.com/v1beta/models/${ACTIVE_MODEL}:generateContent?key=${apiKey}`;
+        let response = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        });
+        let data = await response.json();
+
+        if (data.error && (data.error.code === 404 || data.error.message.includes("not found"))) {
+            ACTIVE_MODEL = await findValidFlashModel(apiKey);
+            url = `https://generativelanguage.googleapis.com/v1beta/models/${ACTIVE_MODEL}:generateContent?key=${apiKey}`;
+            response = await fetch(url, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            data = await response.json();
+        }
+
+        if (data.error) throw new Error(data.error.message);
+        return data.candidates[0].content.parts[0].text;
+    }
+
+    async function generateSentences() {
+        const apiKey = getApiKey();
+        const userPrompt = document.getElementById("prompt-input").value.trim();
+
+        if (!apiKey) return alert("Veuillez coller votre clé API Google AI Studio.");
+        if (!userPrompt) return alert("Veuillez entrer une consigne.");
+
+        const btn = document.getElementById("generate-btn");
+        const loader = document.getElementById("gen-loader");
+        btn.disabled = true;
+        loader.style.display = "block";
+
+        const systemInstruction = `Tu es un professeur d'allemand. L'utilisateur va te donner une consigne. 
+Génère exactement 10 phrases en français correspondant à sa demande. 
+Réponds UNIQUEMENT par un tableau JSON valide contenant les 10 chaînes de caractères en français, sans aucun texte avant ou après, sans balises markdown. 
+Exemple : ["Phrase 1", "Phrase 2"]`;
+
+        try {
+            const rawText = await callGemini({
+                contents: [{ parts: [{ text: systemInstruction + "\n\nConsigne : " + userPrompt }] }],
+                generationConfig: { responseMimeType: "application/json" }
+            });
+
+            sentences = JSON.parse(rawText);
+            currentIndex = 0;
+
+            document.getElementById("setup-card").classList.add("hidden");
+            document.getElementById("practice-card").classList.remove("hidden");
+            showSentence();
+
+        } catch (err) {
+            alert("Erreur : " + err.message);
+        } finally {
+            btn.disabled = false;
+            loader.style.display = "none";
+        }
+    }
+
+    function showSentence() {
+        document.getElementById("progress-text").innerText = `Phrase ${currentIndex + 1} / ${sentences.length}`;
+        document.getElementById("french-sentence").innerText = sentences[currentIndex];
+        document.getElementById("feedback-box").style.display = "none";
+        document.getElementById("feedback-box").innerText = "";
+        document.getElementById("next-btn").classList.add("hidden");
+        document.getElementById("record-btn").innerText = "🎙️ Appuyer pour répondre en allemand";
+    }
+
+    function nextSentence() {
+        currentIndex++;
+        if (currentIndex < sentences.length) {
+            showSentence();
+        } else {
+            alert("Bravo ! Vous avez terminé les 10 phrases.");
+            resetApp();
+        }
+    }
+
+    async function toggleRecording() {
+        const recordBtn = document.getElementById("record-btn");
+
+        if (!isRecording) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    const mimeType = mediaRecorder.mimeType || "audio/webm";
+                    const audioBlob = new Blob(audioChunks, { type: mimeType });
+                    sendAudioToGemini(audioBlob, mimeType);
+                };
+
+                mediaRecorder.start();
+                isRecording = true;
+                recordBtn.classList.add("recording");
+                recordBtn.innerText = "⏹️ Appuyer pour envoyer la réponse";
+            } catch (err) {
+                alert("Impossible d'accéder au micro. Vérifiez les autorisations.\nErreur : " + err.message);
+            }
+        } else {
+            mediaRecorder.stop();
+            isRecording = false;
+            recordBtn.classList.remove("recording");
+            recordBtn.innerText = "🎙️ Réessayer";
+        }
+    }
+
+    function sendAudioToGemini(audioBlob, mimeType) {
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = async () => {
+            const base64Audio = reader.result.split(",")[1];
+            const currentFrench = sentences[currentIndex];
+            const userContext = document.getElementById("prompt-input").value;
+
+            const loader = document.getElementById("eval-loader");
+            const feedbackBox = document.getElementById("feedback-box");
+            loader.style.display = "block";
+            feedbackBox.style.display = "none";
+
+            const evalPrompt = `Tu es un professeur d'allemand bienveillant et précis.
+Contexte de l'exercice : "${userContext}"
+Phrase en français à traduire : "${currentFrench}"
+
+Écoute attentivement l'enregistrement audio de l'élève qui essaie de traduire cette phrase en allemand.
+Réponds en français de façon claire et structurée :
+1. 🗣️ Ce que j'ai entendu : (transcris exactement ce que l'élève a dit en allemand, même s'il y a des fautes).
+2. ✅ Verdict : (Dis si la traduction est correcte, notamment sur le choix du mot clé demandé dans l'exercice et la grammaire).
+3. 💡 Correction & Explication : (Donne la meilleure traduction naturelle en allemand et explique brièvement pourquoi tel mot ou telle structure est préférable).`;
+
+            const cleanMimeType = mimeType.split(";")[0];
+
+            try {
+                const reply = await callGemini({
+                    contents: [{
+                        parts: [
+                            { text: evalPrompt },
+                            { inline_data: { mime_type: cleanMimeType, data: base64Audio } }
+                        ]
+                    }]
+                });
+
+                feedbackBox.innerText = reply;
+                feedbackBox.style.display = "block";
+                document.getElementById("next-btn").classList.remove("hidden");
+
+            } catch (err) {
+                alert("Erreur lors de l'analyse audio : " + err.message);
+            } finally {
+                loader.style.display = "none";
+            }
+        };
+    }
+</script>
+
+</body>
+</html>
