@@ -1,411 +1,297 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Coach Allemand Multi-IA</title>
-    <style>
-        :root {
-            --primary: #2563eb;
-            --danger: #dc2626;
-            --success: #16a34a;
-            --bg: #f8fafc;
-            --card: #ffffff;
-            --text: #1e293b;
-        }
-        * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: var(--bg); color: var(--text); margin: 0; padding: 16px; display: flex; flex-direction: column; align-items: center; }
-        .container { width: 100%; max-width: 500px; }
-        h1 { font-size: 1.4rem; text-align: center; margin-bottom: 16px; color: var(--primary); }
-        .card { background: var(--card); border-radius: 16px; padding: 18px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 16px; }
-        label { display: block; font-weight: 600; font-size: 0.9rem; margin-bottom: 6px; }
-        select, input[type="password"], textarea {
-            width: 100%; padding: 12px; border: 1px solid #cbd5e1; border-radius: 10px;
-            font-size: 1rem; margin-bottom: 12px; background: #fff; color: var(--text);
-        }
-        textarea { resize: vertical; min-height: 95px; }
-        button {
-            width: 100%; padding: 14px; border: none; border-radius: 12px; font-size: 1rem;
-            font-weight: 600; cursor: pointer; transition: transform 0.1s, background-color 0.2s;
-        }
-        button:active { transform: scale(0.98); }
-        .btn-primary { background-color: var(--primary); color: white; }
-        .btn-primary:disabled { background-color: #94a3b8; cursor: not-allowed; }
-        .btn-record { background-color: var(--success); color: white; font-size: 1.1rem; padding: 18px; }
-        .btn-record.recording { background-color: var(--danger); animation: pulse 1.5s infinite; }
-        .btn-secondary { background-color: #e2e8f0; color: var(--text); margin-top: 10px; }
-        
-        .progress { font-size: 0.85rem; color: #64748b; text-align: center; margin-bottom: 8px; font-weight: 600; }
-        .sentence-box {
-            font-size: 1.25rem; font-weight: 700; text-align: center; padding: 20px 10px;
-            background: #eff6ff; border-radius: 12px; margin-bottom: 16px; border: 1px solid #bfdbfe;
-        }
-        .feedback-box {
-            margin-top: 16px; padding: 14px; border-radius: 12px; background: #f1f5f9;
-            font-size: 0.95rem; line-height: 1.5; white-space: pre-wrap; display: none;
-        }
-        .loader { text-align: center; color: var(--primary); font-weight: 600; margin: 12px 0; display: none; }
-        .hidden { display: none; }
-        .settings-toggle { text-align: right; font-size: 0.85rem; color: var(--primary); cursor: pointer; margin-bottom: 8px; text-decoration: underline; }
-        .hint { font-size: 0.8rem; color: #64748b; margin-top: -8px; margin-bottom: 12px; line-height: 1.35; }
-        .keys-box { background: #f8fafc; padding: 12px; border-radius: 10px; border: 1px solid #e2e8f0; margin-bottom: 14px; }
-
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6); }
-            70% { box-shadow: 0 0 0 12px rgba(220, 38, 38, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Coach Allemand Multi-IA</title>
+<style>
+  :root { --primary:#2563eb; --danger:#dc2626; --success:#16a34a; --bg:#f8fafc; --card:#fff; --text:#1e293b; }
+  * { box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  body { background:var(--bg); color:var(--text); margin:0; padding:16px; display:flex; justify-content:center; }
+  .container { width:100%; max-width:500px; }
+  h1 { font-size:1.35rem; text-align:center; margin:0 0 14px; color:var(--primary); }
+  .card { background:var(--card); border-radius:16px; padding:18px; box-shadow:0 4px 6px -1px rgba(0,0,0,.1); margin-bottom:16px; }
+  label { display:block; font-weight:600; font-size:.9rem; margin-bottom:5px; }
+  select, input, textarea { width:100%; padding:11px; border:1px solid #cbd5e1; border-radius:10px; font-size:1rem; margin-bottom:12px; background:#fff; color:var(--text); }
+  textarea { resize:vertical; min-height:95px; }
+  button { width:100%; padding:14px; border:none; border-radius:12px; font-size:1rem; font-weight:600; cursor:pointer; }
+  .btn-primary { background:var(--primary); color:#fff; }
+  .btn-primary:disabled { background:#94a3b8; }
+  .btn-record { background:var(--success); color:#fff; font-size:1.1rem; padding:18px; }
+  .btn-record.recording { background:var(--danger); }
+  .btn-secondary { background:#e2e8f0; color:var(--text); margin-top:10px; }
+  .progress { font-size:.85rem; color:#64748b; text-align:center; margin-bottom:8px; font-weight:600; }
+  .sentence-box { font-size:1.2rem; font-weight:700; text-align:center; padding:18px 10px; background:#eff6ff; border-radius:12px; margin-bottom:16px; border:1px solid #bfdbfe; }
+  .feedback-box { margin-top:16px; padding:14px; border-radius:12px; background:#f1f5f9; font-size:.95rem; line-height:1.5; white-space:pre-wrap; display:none; }
+  .status-box { margin-top:12px; padding:10px; border-radius:10px; font-size:.9rem; text-align:center; display:none; }
+  .status-info { background:#eff6ff; color:var(--primary); font-weight:600; }
+  .status-err { background:#fef2f2; color:var(--danger); border:1px solid #fecaca; text-align:left; white-space:pre-wrap; }
+  .hidden { display:none; }
+  .link-btn { text-align:right; font-size:.85rem; color:var(--primary); cursor:pointer; margin-bottom:10px; text-decoration:underline; }
+  .keys-box { background:#f8fafc; padding:12px; border-radius:10px; border:1px solid #e2e8f0; margin-bottom:14px; }
+</style>
 </head>
 <body>
-
 <div class="container">
-    <h1>🇩🇪 Entraîneur Allemand Multi-IA</h1>
+  <h1>🇩🇪 Entraîneur Allemand Multi-IA</h1>
 
-    <!-- ÉCRAN DE CONFIGURATION -->
-    <div id="setup-card" class="card">
-        <label for="model-select">Choisissez votre modèle d'IA gratuit :</label>
-        <select id="model-select" onchange="updateKeyVisibility()">
-            <optgroup label="Google AI Studio (Audio direct natif)">
-                <option value="gemini|gemini-3.8-flash-lite">Gemini 3.8 Flash-Lite (Rapide & dispo)</option>
-                <option value="gemini|gemini-3.8-flash">Gemini 3.8 Flash (Standard)</option>
-                <option value="gemini|gemini-3.8-pro">Gemini 3.8 Pro (Très précis)</option>
-                <option value="gemini|auto">Gemini Auto (Détecte un modèle libre)</option>
-            </optgroup>
-            <optgroup label="GroqCloud (Ultra-rapide + Whisper Audio)">
-                <option value="groq|qwen/qwen3-32b">Qwen 3 32B (via Groq)</option>
-                <option value="groq|llama-3.3-70b-versatile">Llama 3.3 70B (via Groq)</option>
-                <option value="groq|openai/gpt-oss-120b">GPT-OSS 120B (via Groq)</option>
-            </optgroup>
-            <optgroup label="OpenRouter (Modèles :free + Whisper Groq)">
-                <option value="openrouter|deepseek/deepseek-chat-v3-0324:free">DeepSeek V3 (Gratuit OpenRouter)</option>
-                <option value="openrouter|deepseek/deepseek-r1:free">DeepSeek R1 (Gratuit OpenRouter)</option>
-                <option value="openrouter|z-ai/glm-4.5-air:free">GLM-4 Air (Gratuit OpenRouter)</option>
-                <option value="openrouter|nvidia/llama-3.1-nemotron-70b-instruct:free">NVIDIA Nemotron 70B (Gratuit OpenRouter)</option>
-            </optgroup>
-        </select>
+  <div id="setup-card" class="card">
+    <label for="model-select">Modèle d'IA :</label>
+    <select id="model-select" onchange="onModelChange()">
+      <optgroup label="GroqCloud (Ultra-rapide + Whisper Audio)">
+        <option value="groq|qwen/qwen3-32b">Qwen 3 32B (Groq)</option>
+        <option value="groq|llama-3.3-70b-versatile">Llama 3.3 70B (Groq)</option>
+        <option value="groq|openai/gpt-oss-120b">GPT-OSS 120B (Groq)</option>
+      </optgroup>
+      <optgroup label="Google AI Studio (Audio direct natif)">
+        <option value="gemini|auto">Gemini Auto (Détecte un modèle libre)</option>
+        <option value="gemini|gemini-3.8-flash-lite">Gemini 3.8 Flash-Lite</option>
+        <option value="gemini|gemini-3.8-pro">Gemini 3.8 Pro</option>
+      </optgroup>
+      <optgroup label="OpenRouter (:free + Whisper Groq)">
+        <option value="openrouter|deepseek/deepseek-chat-v3-0324:free">DeepSeek V3 (Gratuit)</option>
+        <option value="openrouter|deepseek/deepseek-r1:free">DeepSeek R1 (Gratuit)</option>
+        <option value="openrouter|z-ai/glm-4.5-air:free">GLM-4 Air (Gratuit)</option>
+        <option value="openrouter|nvidia/llama-3.1-nemotron-70b-instruct:free">NVIDIA Nemotron 70B (Gratuit)</option>
+      </optgroup>
+    </select>
 
-        <div class="settings-toggle" onclick="toggleKeysPanel()">🔑 Gérer mes clés API enregistrées</div>
+    <div class="link-btn" onclick="document.getElementById('keys-panel').classList.toggle('hidden')">🔑 Gérer mes clés API</div>
 
-        <div id="keys-panel" class="keys-box">
-            <div id="wrap-gemini">
-                <label for="key-gemini">Clé API Google AI Studio :</label>
-                <input type="password" id="key-gemini" placeholder="AIzaSy...">
-            </div>
-
-            <div id="wrap-groq">
-                <label for="key-groq">Clé API GroqCloud (obligatoire pour Groq & OpenRouter) :</label>
-                <input type="password" id="key-groq" placeholder="gsk_...">
-                <div class="hint">Sert aussi à transcrire fidèlement votre voix allemande via Whisper gratuit.</div>
-            </div>
-
-            <div id="wrap-openrouter">
-                <label for="key-openrouter">Clé API OpenRouter (pour DeepSeek, GLM, Nemotron) :</label>
-                <input type="password" id="key-openrouter" placeholder="sk-or-v1-...">
-            </div>
-        </div>
-
-        <label for="prompt-input">Votre consigne de génération :</label>
-        <textarea id="prompt-input">Génère 10 phrases de la vie de tous les jours en français qui nécessitent d'utiliser en allemand les mots "normalerweise", "grundsätzlich" ou "eigentlich" selon le contexte, afin de bien apprendre leurs nuances.</textarea>
-
-        <button id="generate-btn" class="btn-primary" onclick="generateSentences()">Générer les 10 phrases</button>
-        <div id="gen-loader" class="loader">Génération des phrases en cours...</div>
+    <div id="keys-panel" class="keys-box">
+      <label for="key-groq">Clé API GroqCloud (gsk_...) :</label>
+      <input type="password" id="key-groq" placeholder="Collez votre clé Groq">
+      <label for="key-gemini">Clé API Google AI Studio (AIza...) :</label>
+      <input type="password" id="key-gemini" placeholder="Collez votre clé Gemini">
+      <label for="key-openrouter">Clé API OpenRouter (sk-or-...) :</label>
+      <input type="password" id="key-openrouter" placeholder="Collez votre clé OpenRouter">
     </div>
 
-    <!-- ÉCRAN D'ENTRAÎNEMENT -->
-    <div id="practice-card" class="card hidden">
-        <div class="settings-toggle" onclick="resetApp()">⚙️ Changer de modèle ou consigne</div>
-        <div class="progress" id="progress-text">Phrase 1 / 10</div>
-        
-        <div class="sentence-box" id="french-sentence">...</div>
+    <label for="prompt-input">Votre consigne de génération :</label>
+    <textarea id="prompt-input">Génère 10 phrases de la vie de tous les jours en français qui nécessitent d'utiliser en allemand les mots "normalerweise", "grundsätzlich" ou "eigentlich" selon le contexte, afin de bien apprendre leurs nuances.</textarea>
 
-        <button id="record-btn" class="btn-record" onclick="toggleRecording()">🎙️ Appuyer pour répondre en allemand</button>
-        <div id="eval-loader" class="loader">Analyse de votre voix en cours...</div>
+    <button id="generate-btn" class="btn-primary">Générer les 10 phrases</button>
+    <div id="setup-status" class="status-box"></div>
+  </div>
 
-        <div id="feedback-box" class="feedback-box"></div>
-
-        <button id="next-btn" class="btn-secondary hidden" onclick="nextSentence()">Phrase suivante ➡️</button>
-    </div>
+  <div id="practice-card" class="card hidden">
+    <div class="link-btn" id="back-btn">⚙️ Changer de modèle / consigne</div>
+    <div class="progress" id="progress-text">Phrase 1 / 10</div>
+    <div class="sentence-box" id="french-sentence">...</div>
+    <button id="record-btn" class="btn-record">🎙️ Appuyer pour répondre en allemand</button>
+    <div id="practice-status" class="status-box"></div>
+    <div id="feedback-box" class="feedback-box"></div>
+    <button id="next-btn" class="btn-secondary hidden">Phrase suivante ➡️</button>
+  </div>
 </div>
 
 <script>
-    let sentences = [];
-    let currentIndex = 0;
-    let mediaRecorder;
-    let audioChunks = [];
-    let isRecording = false;
+let sentences = [], currentIndex = 0, mediaRecorder = null, audioChunks = [], isRecording = false;
 
-    window.onload = () => {
-        const savedModel = localStorage.getItem("selected_model");
-        if (savedModel) document.getElementById("model-select").value = savedModel;
+function showStatus(id, msg, isError = false) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = "status-box " + (isError ? "status-err" : "status-info");
+  el.style.display = "block";
+}
+function hideStatus(id) { document.getElementById(id).style.display = "none"; }
 
-        const kGem = localStorage.getItem("key_gemini");
-        const kGroq = localStorage.getItem("key_groq");
-        const kOr = localStorage.getItem("key_openrouter");
+function loadSavedData() {
+  const m = localStorage.getItem("selected_model");
+  if (m) document.getElementById("model-select").value = m;
+  ["groq", "gemini", "openrouter"].forEach(k => {
+    const val = localStorage.getItem("key_" + k);
+    if (val) document.getElementById("key-" + k).value = val;
+  });
+  if (localStorage.getItem("key_groq") || localStorage.getItem("key_gemini")) {
+    document.getElementById("keys-panel").classList.add("hidden");
+  }
+}
 
-        if (kGem) document.getElementById("key-gemini").value = kGem;
-        if (kGroq) document.getElementById("key-groq").value = kGroq;
-        if (kOr) document.getElementById("key-openrouter").value = kOr;
+function saveData() {
+  localStorage.setItem("selected_model", document.getElementById("model-select").value);
+  const keys = {};
+  ["groq", "gemini", "openrouter"].forEach(k => {
+    const v = document.getElementById("key-" + k).value.trim();
+    if (v) localStorage.setItem("key_" + k, v);
+    keys[k] = v || localStorage.getItem("key_" + k) || "";
+  });
+  return keys;
+}
 
-        updateKeyVisibility();
+function onModelChange() { localStorage.setItem("selected_model", document.getElementById("model-select").value); }
 
-        // Masquer le panneau des clés si la clé nécessaire est déjà enregistrée
-        const [provider] = document.getElementById("model-select").value.split("|");
-        if ((provider === "gemini" && kGem) || 
-            (provider === "groq" && kGroq) || 
-            (provider === "openrouter" && kOr && kGroq)) {
-            document.getElementById("keys-panel").classList.add("hidden");
-        }
-    };
+async function findGeminiModel(apiKey) {
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  const list = (data.models || []).filter(m => m.name.includes("flash") && !m.name.includes("1.5") && !m.name.includes("2.0") && m.supportedGenerationMethods?.includes("generateContent"));
+  const chosen = list[list.length - 1] || (data.models || []).find(m => m.supportedGenerationMethods?.includes("generateContent"));
+  if (!chosen) throw new Error("Aucun modèle Gemini disponible.");
+  return chosen.name.replace("models/", "");
+}
 
-    function toggleKeysPanel() {
-        document.getElementById("keys-panel").classList.toggle("hidden");
+async function callGemini(model, apiKey, text, audioB64 = null, audioMime = null) {
+  if (model === "auto") model = await findGeminiModel(apiKey);
+  const parts = [{ text }];
+  if (audioB64) parts.push({ inline_data: { mime_type: audioMime, data: audioB64 } });
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ contents: [{ parts }] })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.candidates[0].content.parts[0].text;
+}
+
+async function callOpenAI(url, apiKey, model, text) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey, "HTTP-Referer": window.location.href },
+    body: JSON.stringify({ model, messages: [{ role: "user", content: text }] })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
+  return data.choices[0].message.content;
+}
+
+async function transcribeGroq(blob, groqKey) {
+  const fd = new FormData();
+  fd.append("file", blob, "audio.webm");
+  fd.append("model", "whisper-large-v3");
+  fd.append("language", "de");
+  const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+    method: "POST",
+    headers: { "Authorization": "Bearer " + groqKey },
+    body: fd
+  });
+  const data = await res.json();
+  if (data.error) throw new Error("Whisper Groq : " + data.error.message);
+  return data.text;
+}
+
+document.getElementById("generate-btn").addEventListener("click", async () => {
+  hideStatus("setup-status");
+  const keys = saveData();
+  const [provider, model] = document.getElementById("model-select").value.split("|");
+  const userPrompt = document.getElementById("prompt-input").value.trim();
+
+  if (provider === "groq" && !keys.groq) { document.getElementById("keys-panel").classList.remove("hidden"); return showStatus("setup-status", "Clé Groq manquante.", true); }
+  if (provider === "gemini" && !keys.gemini) { document.getElementById("keys-panel").classList.remove("hidden"); return showStatus("setup-status", "Clé Gemini manquante.", true); }
+  if (provider === "openrouter" && (!keys.openrouter || !keys.groq)) { document.getElementById("keys-panel").classList.remove("hidden"); return showStatus("setup-status", "Clés OpenRouter et Groq requises.", true); }
+
+  const btn = document.getElementById("generate-btn");
+  btn.disabled = true;
+  showStatus("setup-status", "Génération des 10 phrases en cours...");
+
+  const sysPrompt = `Tu es un professeur d'allemand. Consigne : "${userPrompt}". Génère exactement 10 phrases en français. Réponds UNIQUEMENT par un tableau JSON valide de 10 chaînes de caractères, sans texte autour ni balises markdown. Exemple : ["Phrase 1", "Phrase 2"]`;
+
+  try {
+    let raw = "";
+    if (provider === "groq") raw = await callOpenAI("https://api.groq.com/openai/v1/chat/completions", keys.groq, model, sysPrompt);
+    else if (provider === "gemini") raw = await callGemini(model, keys.gemini, sysPrompt);
+    else raw = await callOpenAI("https://openrouter.ai/api/v1/chat/completions", keys.openrouter, model, sysPrompt);
+
+    const start = raw.indexOf("[");
+    const end = raw.lastIndexOf("]");
+    if (start === -1 || end === -1) throw new Error("Réponse invalide du modèle : " + raw);
+    sentences = JSON.parse(raw.slice(start, end + 1));
+    currentIndex = 0;
+
+    hideStatus("setup-status");
+    document.getElementById("setup-card").classList.add("hidden");
+    document.getElementById("practice-card").classList.remove("hidden");
+    renderSentence();
+  } catch (err) {
+    showStatus("setup-status", "Erreur : " + err.message, true);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function renderSentence() {
+  document.getElementById("progress-text").textContent = `Phrase ${currentIndex + 1} / ${sentences.length}`;
+  document.getElementById("french-sentence").textContent = sentences[currentIndex];
+  document.getElementById("feedback-box").style.display = "none";
+  document.getElementById("next-btn").classList.add("hidden");
+  document.getElementById("record-btn").textContent = "🎙️ Appuyer pour répondre en allemand";
+  hideStatus("practice-status");
+}
+
+document.getElementById("back-btn").addEventListener("click", () => {
+  document.getElementById("practice-card").classList.add("hidden");
+  document.getElementById("setup-card").classList.remove("hidden");
+});
+
+document.getElementById("next-btn").addEventListener("click", () => {
+  currentIndex++;
+  if (currentIndex < sentences.length) renderSentence();
+  else { alert("Bravo ! Série terminée."); document.getElementById("back-btn").click(); }
+});
+
+document.getElementById("record-btn").addEventListener("click", async () => {
+  const btn = document.getElementById("record-btn");
+  if (!isRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+      mediaRecorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const mime = mediaRecorder.mimeType || "audio/webm";
+        evaluateAudio(new Blob(audioChunks, { type: mime }), mime);
+      };
+      mediaRecorder.start();
+      isRecording = true;
+      btn.classList.add("recording");
+      btn.textContent = "⏹️ Appuyer pour envoyer la réponse";
+    } catch (err) {
+      showStatus("practice-status", "Erreur micro : " + err.message, true);
     }
+  } else {
+    mediaRecorder.stop();
+    isRecording = false;
+    btn.classList.remove("recording");
+    btn.textContent = "🎙️ Réessayer";
+  }
+});
 
-    function updateKeyVisibility() {
-        const val = document.getElementById("model-select").value;
-        localStorage.setItem("selected_model", val);
-        const [provider] = val.split("|");
+async function evaluateAudio(blob, mime) {
+  const keys = saveData();
+  const [provider, model] = document.getElementById("model-select").value.split("|");
+  const fr = sentences[currentIndex];
+  const ctx = document.getElementById("prompt-input").value;
+  document.getElementById("feedback-box").style.display = "none";
 
-        document.getElementById("wrap-gemini").style.display = (provider === "gemini") ? "block" : "none";
-        document.getElementById("wrap-groq").style.display = (provider === "groq" || provider === "openrouter") ? "block" : "none";
-        document.getElementById("wrap-openrouter").style.display = (provider === "openrouter") ? "block" : "none";
+  try {
+    let reply = "";
+    if (provider === "gemini") {
+      showStatus("practice-status", "Écoute et analyse par Gemini...");
+      const b64 = await new Promise(r => { const rd = new FileReader(); rd.onloadend = () => r(rd.result.split(",")[1]); rd.readAsDataURL(blob); });
+      const p = `Tu es professeur d'allemand. Contexte : "${ctx}". Phrase française : "${fr}". Écoute l'audio et réponds en français :\n1. 🗣️ Ce que j'ai entendu : (transcription exacte en allemand)\n2. ✅ Verdict : (validation du mot-clé et de la grammaire)\n3. 💡 Correction : (meilleure traduction naturelle et brève explication).`;
+      reply = await callGemini(model, keys.gemini, p, b64, mime.split(";")[0]);
+    } else {
+      showStatus("practice-status", "1/2 Transcription vocale (Whisper)...");
+      const spoken = await transcribeGroq(blob, keys.groq);
+      showStatus("practice-status", "2/2 Correction grammaticale...");
+      const p = `Tu es professeur d'allemand. Contexte : "${ctx}". Phrase française : "${fr}". L'élève a dit à l'oral : "${spoken}". Réponds en français :\n1. 🗣️ Ce que j'ai entendu : "${spoken}"\n2. ✅ Verdict : (validation du mot-clé et de la grammaire)\n3. 💡 Correction : (meilleure traduction naturelle et brève explication).`;
+      reply = provider === "groq"
+        ? await callOpenAI("https://api.groq.com/openai/v1/chat/completions", keys.groq, model, p)
+        : await callOpenAI("https://openrouter.ai/api/v1/chat/completions", keys.openrouter, model, p);
     }
+    hideStatus("practice-status");
+    const fb = document.getElementById("feedback-box");
+    fb.textContent = reply;
+    fb.style.display = "block";
+    document.getElementById("next-btn").classList.remove("hidden");
+  } catch (err) {
+    showStatus("practice-status", "Erreur analyse : " + err.message, true);
+  }
+}
 
-    function saveKeys() {
-        const kGem = document.getElementById("key-gemini").value.trim();
-        const kGroq = document.getElementById("key-groq").value.trim();
-        const kOr = document.getElementById("key-openrouter").value.trim();
-        if (kGem) localStorage.setItem("key_gemini", kGem);
-        if (kGroq) localStorage.setItem("key_groq", kGroq);
-        if (kOr) localStorage.setItem("key_openrouter", kOr);
-        return {
-            gemini: kGem || localStorage.getItem("key_gemini"),
-            groq: kGroq || localStorage.getItem("key_groq"),
-            openrouter: kOr || localStorage.getItem("key_openrouter")
-        };
-    }
-
-    function resetApp() {
-        document.getElementById("practice-card").classList.add("hidden");
-        document.getElementById("setup-card").classList.remove("hidden");
-    }
-
-    // --- APPELS AUX DIFFÉRENTES IA ---
-
-    async function findLatestGeminiFlash(apiKey) {
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`); const data = await res.json(); if (data.error) throw new Error(data.error.message); const valid = data.models.filter(m => m.name.includes("flash") && !m.name.includes("1.5") && !m.name.includes("2.0") && m.supportedGenerationMethods?.includes("generateContent") ); const chosen = valid[valid.length - 1] \vert{}\vert{} data.models.filter(m => m.name.includes("flash")).pop(); return chosen.name.replace("models/", ""); }  async function callGemini(model, apiKey, promptText, audioBase64 = null, audioMime = null) { if (model === "auto") model = await findLatestGeminiFlash(apiKey); const parts = [{ text: promptText }]; if (audioBase64) { parts.push({ inline_data: { mime_type: audioMime, data: audioBase64 } }); }  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ contents: [{ parts }] }) }); const data = await response.json(); if (data.error) throw new Error(data.error.message); return data.candidates[0].content.parts[0].text; }  async function transcribeWithGroqWhisper(audioBlob, groqKey) { const formData = new FormData(); formData.append("file", audioBlob, "audio.webm"); formData.append("model", "whisper-large-v3"); formData.append("language", "de"); // Force la reconnaissance phonétique en allemand  const response = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", { method: "POST", headers: { "Authorization": `Bearer ${groqKey}` },
-            body: formData
-        });
-        const data = await response.json();
-        if (data.error) throw new Error("Whisper Groq : " + data.error.message);
-        return data.text;
-    }
-
-    async function callOpenAICompatible(endpoint, apiKey, model, promptText) {
-        const response = await fetch(endpoint, {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`,
-                "HTTP-Referer": window.location.href,
-                "X-Title": "Coach Allemand"
-            },
-            body: JSON.stringify({
-                model: model,
-                messages: [{ role: "user", content: promptText }]
-            })
-        });
-        const data = await response.json();
-        if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-        return data.choices[0].message.content;
-    }
-
-    // --- 1. GÉNÉRATION DES 10 PHRASES ---
-    async function generateSentences() {
-        const keys = saveKeys();
-        const [provider, model] = document.getElementById("model-select").value.split("|");
-        const userPrompt = document.getElementById("prompt-input").value.trim();
-
-        if (provider === "gemini" && !keys.gemini) {
-            document.getElementById("keys-panel").classList.remove("hidden");
-            return alert("Veuillez coller votre clé API Google AI Studio.");
-        }
-        if (provider === "groq" && !keys.groq) {
-            document.getElementById("keys-panel").classList.remove("hidden");
-            return alert("Veuillez coller votre clé API GroqCloud.");
-        }
-        if (provider === "openrouter" && (!keys.openrouter || !keys.groq)) {
-            document.getElementById("keys-panel").classList.remove("hidden");
-            return alert("Veuillez coller votre clé OpenRouter ET votre clé Groq (pour la voix).");
-        }
-
-        const btn = document.getElementById("generate-btn");
-        const loader = document.getElementById("gen-loader");
-        btn.disabled = true;
-        loader.style.display = "block";
-
-        const fullPrompt = `Tu es un professeur d'allemand. L'utilisateur te donne cette consigne : "${userPrompt}".
-Génère exactement 10 phrases en français correspondant à sa demande. 
-Réponds UNIQUEMENT par un tableau JSON valide contenant les 10 chaînes de caractères en français, sans aucun texte avant ou après, sans balises \`\`\`json.
-Exemple : ["Phrase 1", "Phrase 2"]`;
-
-        try {
-            let rawText = "";
-            if (provider === "gemini") {
-                rawText = await callGemini(model, keys.gemini, fullPrompt);
-            } else if (provider === "groq") {
-                rawText = await callOpenAICompatible("https://api.groq.com/openai/v1/chat/completions", keys.groq, model, fullPrompt);
-            } else if (provider === "openrouter") {
-                rawText = await callOpenAICompatible("https://openrouter.ai/api/v1/chat/completions", keys.openrouter, model, fullPrompt);
-            }
-
-            // Nettoyage au cas où le modèle ajoute des balises markdown ```json
-            const cleanJson = rawText.replace(/```json/gi, "").replace(/```/g, "").trim();
-            sentences = JSON.parse(cleanJson);
-            currentIndex = 0;
-
-            document.getElementById("setup-card").classList.add("hidden");
-            document.getElementById("practice-card").classList.remove("hidden");
-            showSentence();
-
-        } catch (err) {
-            alert("Erreur : " + err.message);
-        } finally {
-            btn.disabled = false;
-            loader.style.display = "none";
-        }
-    }
-
-    function showSentence() {
-        document.getElementById("progress-text").innerText = `Phrase ${currentIndex + 1} / ${sentences.length}`;
-        document.getElementById("french-sentence").innerText = sentences[currentIndex];
-        document.getElementById("feedback-box").style.display = "none";
-        document.getElementById("feedback-box").innerText = "";
-        document.getElementById("next-btn").classList.add("hidden");
-        document.getElementById("record-btn").innerText = "🎙️ Appuyer pour répondre en allemand";
-    }
-
-    function nextSentence() {
-        currentIndex++;
-        if (currentIndex < sentences.length) {
-            showSentence();
-        } else {
-            alert("Bravo ! Vous avez terminé les 10 phrases.");
-            resetApp();
-        }
-    }
-
-    // --- 2. ENREGISTREMENT AUDIO ---
-    async function toggleRecording() {
-        const recordBtn = document.getElementById("record-btn");
-
-        if (!isRecording) {
-            try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-
-                mediaRecorder.ondataavailable = event => {
-                    if (event.data.size > 0) audioChunks.push(event.data);
-                };
-
-                mediaRecorder.onstop = () => {
-                    stream.getTracks().forEach(track => track.stop());
-                    const mimeType = mediaRecorder.mimeType || "audio/webm";
-                    const audioBlob = new Blob(audioChunks, { type: mimeType });
-                    processAudioAnswer(audioBlob, mimeType);
-                };
-
-                mediaRecorder.start();
-                isRecording = true;
-                recordBtn.classList.add("recording");
-                recordBtn.innerText = "⏹️ Appuyer pour envoyer la réponse";
-            } catch (err) {
-                alert("Impossible d'accéder au micro : " + err.message);
-            }
-        } else {
-            mediaRecorder.stop();
-            isRecording = false;
-            recordBtn.classList.remove("recording");
-            recordBtn.innerText = "🎙️ Réessayer";
-        }
-    }
-
-    // --- 3. ÉVALUATION SELON LE FOURNISSEUR CHOISI ---
-    async function processAudioAnswer(audioBlob, mimeType) {
-        const keys = saveKeys();
-        const [provider, model] = document.getElementById("model-select").value.split("|");
-        const currentFrench = sentences[currentIndex];
-        const userContext = document.getElementById("prompt-input").value;
-
-        const loader = document.getElementById("eval-loader");
-        const feedbackBox = document.getElementById("feedback-box");
-        loader.style.display = "block";
-        feedbackBox.style.display = "none";
-
-        try {
-            let reply = "";
-
-            if (provider === "gemini") {
-                const base64Audio = await blobToBase64(audioBlob);
-                const cleanMime = mimeType.split(";")[0];
-                const evalPrompt = `Tu es un professeur d'allemand bienveillant et précis.
-Contexte de l'exercice : "${userContext}"
-Phrase en français à traduire : "${currentFrench}"
-
-Écoute attentivement l'enregistrement audio de l'élève qui essaie de traduire cette phrase en allemand.
-Réponds en français de façon claire et structurée :
-1. 🗣️ Ce que j'ai entendu : (transcris exactement ce que l'élève a dit en allemand, même s'il y a des fautes).
-2. ✅ Verdict : (Dis si la traduction est correcte, notamment sur le choix du mot clé demandé dans l'exercice et la grammaire).
-3. 💡 Correction & Explication : (Donne la meilleure traduction naturelle en allemand et explique brièvement pourquoi tel mot ou telle structure est préférable).`;
-
-                reply = await callGemini(model, keys.gemini, evalPrompt, base64Audio, cleanMime);
-
-            } else {
-                // Étape A : Transcription haute précision avec Whisper sur Groq
-                loader.innerText = "1/2 Transcription vocale (Whisper)...";
-                const spokenGerman = await transcribeWithGroqWhisper(audioBlob, keys.groq);
-
-                // Étape B : Correction grammaticale par le modèle choisi (DeepSeek, GLM, Qwen, Llama, Nemotron)
-                loader.innerText = "2/2 Analyse grammaticale par " + model.split("/").pop() + "...";
-                const evalPrompt = `Tu es un professeur d'allemand bienveillant et précis.
-Contexte de l'exercice : "${userContext}"
-Phrase en français à traduire : "${currentFrench}"
-Voici la transcription exacte de ce que l'élève a dit à l'oral en allemand : "${spokenGerman}"
-
-Réponds en français de façon claire et structurée :
-1. 🗣️ Ce que j'ai entendu : "${spokenGerman}"
-2. ✅ Verdict : (Dis si la traduction est correcte, notamment sur le choix du mot clé demandé dans l'exercice et la grammaire).
-3. 💡 Correction & Explication : (Donne la meilleure traduction naturelle en allemand et explique brièvement pourquoi tel mot ou telle structure est préférable).`;
-
-                if (provider === "groq") {
-                    reply = await callOpenAICompatible("[https://api.groq.com/openai/v1/chat/completions](https://api.groq.com/openai/v1/chat/completions)", keys.groq, model, evalPrompt);
-                } else {
-                    reply = await callOpenAICompatible("[https://openrouter.ai/api/v1/chat/completions](https://openrouter.ai/api/v1/chat/completions)", keys.openrouter, model, evalPrompt);
-                }
-            }
-
-            feedbackBox.innerText = reply;
-            feedbackBox.style.display = "block";
-            document.getElementById("next-btn").classList.remove("hidden");
-
-        } catch (err) {
-            alert("Erreur lors de l'analyse : " + err.message);
-        } finally {
-            loader.style.display = "none";
-            loader.innerText = "Analyse de votre voix en cours...";
-        }
-    }
-
-    function blobToBase64(blob) {
-        return new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result.split(",")[1]);
-            reader.readAsDataURL(blob);
-        });
-    }
+loadSavedData();
 </script>
-
 </body>
 </html>
