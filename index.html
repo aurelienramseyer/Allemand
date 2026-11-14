@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Coach Allemand Multi-IA (v1.3.0)</title>
+<title>Coach Allemand Multi-IA (v1.3.1)</title>
 <style>
   :root { --primary:#2563eb; --danger:#dc2626; --success:#16a34a; --bg:#f8fafc; --card:#fff; --text:#1e293b; }
   * { box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
@@ -24,7 +24,8 @@
   .btn-small { padding:9px; font-size:0.85rem; background:#eff6ff; color:var(--primary); border:1px solid #bfdbfe; margin-bottom:12px; }
   .progress { font-size:.85rem; color:#64748b; text-align:center; margin-bottom:8px; font-weight:600; }
   .sentence-box { font-size:1.2rem; font-weight:700; text-align:center; padding:18px 10px; background:#eff6ff; border-radius:12px; margin-bottom:16px; border:1px solid #bfdbfe; }
-  .feedback-box { margin-top:16px; padding:14px; border-radius:12px; background:#f1f5f9; font-size:.95rem; line-height:1.5; white-space:pre-wrap; display:none; }
+  .feedback-box { margin-top:16px; padding:15px; border-radius:12px; background:#f1f5f9; font-size:.95rem; line-height:1.55; display:none; }
+  .feedback-box strong { color:#0f172a; }
   .status-box { margin-top:12px; padding:10px; border-radius:10px; font-size:.9rem; text-align:center; display:none; }
   .status-info { background:#eff6ff; color:var(--primary); font-weight:600; }
   .status-err { background:#fef2f2; color:var(--danger); border:1px solid #fecaca; text-align:left; white-space:pre-wrap; }
@@ -36,7 +37,7 @@
 <body>
 <div class="container">
   <h1>🇩🇪 Entraîneur Allemand Multi-IA</h1>
-  <div class="version-tag">Version 1.3.0</div>
+  <div class="version-tag">Version 1.3.1</div>
 
   <div id="setup-card" class="card">
     <label for="model-select">Modèles réellement disponibles sur vos clés :</label>
@@ -77,6 +78,21 @@
 <script>
 let sentences = [], currentIndex = 0, mediaRecorder = null, audioChunks = [], isRecording = false, whisperModel = "whisper-large-v3";
 
+// Formatage propre du Markdown renvoyé par les IA (**gras**, *italique*, titres, listes)
+function formatMarkdown(text) {
+  let html = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+  html = html.replace(/^###\s+(.*)$/gm, "<strong>$1</strong>");
+  html = html.replace(/^##\s+(.*)$/gm, "<strong>$1</strong>");
+  html = html.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/\*([^*\n]+?)\*/g, "<em>$1</em>");
+  html = html.replace(/^\s*-\s+/gm, "• ");
+  html = html.replace(/\n/g, "<br>");
+  return html;
+}
+
 function showStatus(id, msg, isError = false) {
   const el = document.getElementById(id);
   el.textContent = msg;
@@ -95,7 +111,6 @@ function saveData() {
   return keys;
 }
 
-// Détection dynamique des modèles réellement actifs sur chaque API
 async function refreshAllModels() {
   const keys = saveData();
   const select = document.getElementById("model-select");
@@ -103,7 +118,6 @@ async function refreshAllModels() {
   select.innerHTML = "<option value=''>Recherche des modèles actifs...</option>";
   let totalAdded = 0;
 
-  // 1. Modèles Groq actifs
   if (keys.groq) {
     try {
       const res = await fetch("https://api.groq.com/openai/v1/models", { headers: { "Authorization": "Bearer " + keys.groq } });
@@ -128,7 +142,6 @@ async function refreshAllModels() {
     } catch (e) {}
   }
 
-  // 2. Modèles Gemini actifs
   if (keys.gemini) {
     try {
       const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${keys.gemini}`);
@@ -152,7 +165,6 @@ async function refreshAllModels() {
     } catch (e) {}
   }
 
-  // 3. Modèles gratuits OpenRouter (:free)
   if (keys.openrouter) {
     try {
       const res = await fetch("https://openrouter.ai/api/v1/models", { headers: { "Authorization": "Bearer " + keys.openrouter } });
@@ -176,7 +188,7 @@ async function refreshAllModels() {
   }
 
   if (totalAdded > 0) {
-    select.remove(0); // Retire "Recherche..."
+    select.remove(0);
     if (prevChoice && [...select.options].some(o => o.value === prevChoice)) select.value = prevChoice;
     localStorage.setItem("selected_model", select.value);
     document.getElementById("keys-panel").classList.add("hidden");
@@ -342,7 +354,7 @@ async function evaluateAudio(blob, mime) {
     }
     hideStatus("practice-status");
     const fb = document.getElementById("feedback-box");
-    fb.textContent = reply;
+    fb.innerHTML = formatMarkdown(reply);
     fb.style.display = "block";
     document.getElementById("next-btn").classList.remove("hidden");
   } catch (err) {
@@ -350,7 +362,6 @@ async function evaluateAudio(blob, mime) {
   }
 }
 
-// Chargement initial
 ["groq", "gemini", "openrouter"].forEach(k => {
   const val = localStorage.getItem("key_" + k);
   if (val) document.getElementById("key-" + k).value = val;
