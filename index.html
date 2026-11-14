@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Coach Allemand Multi-IA (v1.3.1)</title>
+<title>Coach Allemand Multi-IA (v1.4.0)</title>
 <style>
   :root { --primary:#2563eb; --danger:#dc2626; --success:#16a34a; --bg:#f8fafc; --card:#fff; --text:#1e293b; }
   * { box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
@@ -37,10 +37,10 @@
 <body>
 <div class="container">
   <h1>🇩🇪 Entraîneur Allemand Multi-IA</h1>
-  <div class="version-tag">Version 1.3.1</div>
+  <div class="version-tag">Version 1.4.0</div>
 
   <div id="setup-card" class="card">
-    <label for="model-select">Modèles réellement disponibles sur vos clés :</label>
+    <label for="model-select">Modèles actifs (triés par famille) :</label>
     <select id="model-select" onchange="localStorage.setItem('selected_model', this.value)">
       <option value="">Chargement des modèles actifs...</option>
     </select>
@@ -78,9 +78,12 @@
 <script>
 let sentences = [], currentIndex = 0, mediaRecorder = null, audioChunks = [], isRecording = false, whisperModel = "whisper-large-v3";
 
-// Formatage propre du Markdown renvoyé par les IA (**gras**, *italique*, titres, listes)
+function stripThinking(text) {
+  return (text || "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+}
+
 function formatMarkdown(text) {
-  let html = text
+  let html = stripThinking(text)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
@@ -111,6 +114,32 @@ function saveData() {
   return keys;
 }
 
+// Extraction robuste des 10 phrases (gère les balises <think>, les guillemets internes et les listes)
+function parseSentences(rawText) {
+  const clean = stripThinking(rawText);
+  const start = clean.indexOf("[");
+  const end = clean.lastIndexOf("]");
+  if (start !== -1 && end !== -1 && end > start) {
+    try {
+      const arr = JSON.parse(clean.slice(start, end + 1));
+      if (Array.isArray(arr) && arr.length > 0) return arr.map(s => String(s).trim()).filter(Boolean);
+    } catch (e) {
+      // Secours si le modèle a mis des guillemets non échappés dans le JSON
+      const lines = clean.slice(start + 1, end).split(/\r?\n/)
+        .map(l => l.trim().replace(/^["']|["'],?$/g, "").trim())
+        .filter(l => l.length > 3);
+      if (lines.length >= 5) return lines;
+    }
+  }
+  // Secours si le modèle a répondu par une liste numérotée (1. ... 2. ...)
+  const listLines = clean.split(/\r?\n/)
+    .map(l => l.replace(/^\s*(?:\d+[\.\)\-]|[-*•])\s*/, "").replace(/^["']|["']$/g, "").trim())
+    .filter(l => l.length > 5);
+  if (listLines.length >= 5) return listLines.slice(0, 10);
+
+  throw new Error("Impossible d'extraire les phrases de la réponse du modèle.");
+}
+
 async function refreshAllModels() {
   const keys = saveData();
   const select = document.getElementById("model-select");
@@ -118,6 +147,51 @@ async function refreshAllModels() {
   select.innerHTML = "<option value=''>Recherche des modèles actifs...</option>";
   let totalAdded = 0;
 
+  // 1. Modèles Google Gemini (sans TTS, sans Nano Banana / image / robotics / embedding)
+  if (keys.gemini) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${keys.gemini}`);
+      const data = await res.json();
+      if (data.models) {
+        const seenNames = new Set();
+        const gemModels = data.models
+          .filter(m => {
+            const id = m.name.toLowerCase();
+            const disp = (m.displayName || "").toLowerCase();
+            return m.supportedGenerationMethods?.includes("generateContent") &&
+              id.includes("gemini") &&
+              !id.includes("tts") &&
+              !id.includes("image") &&
+              !id.includes("banana") &&
+              !disp.includes("banana") &&
+              !id.includes("robotics") &&
+              !id.includes("computer-use") &&
+              !id.includes("deep-research") &&
+              !id.includes("embedding");
+          })
+          .sort((a, b) => (a.displayName || a.name).localeCompare(b.displayName || b.name));
+
+        if (gemModels.length) {
+          const grp = document.createElement("optgroup");
+          grp.label = "Google Gemini (Audio direct natif)";
+          gemModels.forEach(m => {
+            const cleanId = m.name.replace("models/", "");
+            const label = m.displayName || cleanId;
+            if (seenNames.has(label)) return;
+            seenNames.add(label);
+            const opt = document.createElement("option");
+            opt.value = "gemini|" + cleanId;
+            opt.textContent = label;
+            grp.appendChild(opt);
+            totalAdded++;
+          });
+          select.appendChild(grp);
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 2. Modèles GroqCloud (triés alphabétiquement)
   if (keys.groq) {
     try {
       const res = await fetch("https://api.groq.com/openai/v1/models", { headers: { "Authorization": "Bearer " + keys.groq } });
@@ -125,14 +199,20 @@ async function refreshAllModels() {
       if (data.data) {
         const w = data.data.find(m => m.id.includes("whisper"));
         if (w) whisperModel = w.id;
-        const chatModels = data.data.filter(m => !m.id.includes("whisper") && !m.id.includes("guard") && !m.id.includes("tts"));
+        const chatModels = data.data
+          .filter(m => {
+            const id = m.id.toLowerCase();
+            return !id.includes("whisper") && !id.includes("guard") && !id.includes("tts") && !id.includes("safeguard") && !id.includes("orpheus");
+          })
+          .sort((a, b) => a.id.localeCompare(b.id));
+
         if (chatModels.length) {
           const grp = document.createElement("optgroup");
-          grp.label = "GroqCloud (Ultra-rapide + Whisper)";
+          grp.label = "GroqCloud (Ultra-rapide + Whisper Audio)";
           chatModels.forEach(m => {
             const opt = document.createElement("option");
             opt.value = "groq|" + m.id;
-            opt.textContent = m.id + " (Groq)";
+            opt.textContent = m.id;
             grp.appendChild(opt);
             totalAdded++;
           });
@@ -142,42 +222,23 @@ async function refreshAllModels() {
     } catch (e) {}
   }
 
-  if (keys.gemini) {
-    try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${keys.gemini}`);
-      const data = await res.json();
-      if (data.models) {
-        const gemModels = data.models.filter(m => m.supportedGenerationMethods?.includes("generateContent") && m.name.includes("gemini"));
-        if (gemModels.length) {
-          const grp = document.createElement("optgroup");
-          grp.label = "Google Gemini (Audio direct natif)";
-          gemModels.forEach(m => {
-            const cleanId = m.name.replace("models/", "");
-            const opt = document.createElement("option");
-            opt.value = "gemini|" + cleanId;
-            opt.textContent = (m.displayName || cleanId);
-            grp.appendChild(opt);
-            totalAdded++;
-          });
-          select.appendChild(grp);
-        }
-      }
-    } catch (e) {}
-  }
-
+  // 3. Modèles gratuits OpenRouter (triés par éditeur/famille, ex: tous les NVIDIA Nemotron ensemble)
   if (keys.openrouter) {
     try {
       const res = await fetch("https://openrouter.ai/api/v1/models", { headers: { "Authorization": "Bearer " + keys.openrouter } });
       const data = await res.json();
       if (data.data) {
-        const freeModels = data.data.filter(m => m.id.endsWith(":free"));
+        const freeModels = data.data
+          .filter(m => m.id.endsWith(":free") && !m.id.includes("image") && !m.id.includes("tts"))
+          .sort((a, b) => (a.name || a.id).localeCompare(b.name || b.id));
+
         if (freeModels.length) {
           const grp = document.createElement("optgroup");
           grp.label = "OpenRouter (Modèles :free + Whisper Groq)";
           freeModels.forEach(m => {
             const opt = document.createElement("option");
             opt.value = "openrouter|" + m.id;
-            opt.textContent = m.name.replace(" (free)", "") + " (Gratuit)";
+            opt.textContent = (m.name || m.id).replace(/\s*\(free\)/i, "");
             grp.appendChild(opt);
             totalAdded++;
           });
@@ -192,7 +253,7 @@ async function refreshAllModels() {
     if (prevChoice && [...select.options].some(o => o.value === prevChoice)) select.value = prevChoice;
     localStorage.setItem("selected_model", select.value);
     document.getElementById("keys-panel").classList.add("hidden");
-    showStatus("setup-status", `${totalAdded} modèles actifs détectés sur vos clés !`);
+    showStatus("setup-status", `${totalAdded} modèles texte actifs détectés et triés !`);
     setTimeout(() => hideStatus("setup-status"), 2500);
   } else {
     select.innerHTML = "<option value=''>Aucun modèle trouvé — Vérifiez vos clés</option>";
@@ -210,7 +271,10 @@ async function callGemini(model, apiKey, text, audioB64 = null, audioMime = null
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error.message);
-  return data.candidates[0].content.parts[0].text;
+  const candidate = data.candidates?.[0];
+  const replyText = candidate?.content?.parts?.map(p => p.text || "").join("") || "";
+  if (!replyText) throw new Error("Ce modèle n'a renvoyé aucun texte (essayez un modèle Flash ou Pro).");
+  return replyText;
 }
 
 async function callOpenAI(url, apiKey, model, text) {
@@ -221,7 +285,9 @@ async function callOpenAI(url, apiKey, model, text) {
   });
   const data = await res.json();
   if (data.error) throw new Error(data.error.message || JSON.stringify(data.error));
-  return data.choices[0].message.content;
+  const replyText = data.choices?.[0]?.message?.content || "";
+  if (!replyText) throw new Error("Réponse vide du modèle.");
+  return replyText;
 }
 
 async function transcribeGroq(blob, groqKey) {
@@ -256,7 +322,7 @@ document.getElementById("generate-btn").addEventListener("click", async () => {
   btn.disabled = true;
   showStatus("setup-status", "Génération des 10 phrases en cours...");
 
-  const sysPrompt = `Tu es un professeur d'allemand. Consigne : "${userPrompt}". Génère exactement 10 phrases en français. Réponds UNIQUEMENT par un tableau JSON valide de 10 chaînes de caractères, sans texte autour ni balises markdown. Exemple : ["Phrase 1", "Phrase 2"]`;
+  const sysPrompt = `Tu es un professeur d'allemand. Consigne : "${userPrompt}". Génère exactement 10 phrases en français. Réponds UNIQUEMENT par un tableau JSON valide de 10 chaînes de caractères, sans réflexion ni texte autour. Exemple : ["Phrase 1", "Phrase 2"]`;
 
   try {
     let raw = "";
@@ -264,10 +330,7 @@ document.getElementById("generate-btn").addEventListener("click", async () => {
     else if (provider === "gemini") raw = await callGemini(model, keys.gemini, sysPrompt);
     else raw = await callOpenAI("https://openrouter.ai/api/v1/chat/completions", keys.openrouter, model, sysPrompt);
 
-    const start = raw.indexOf("[");
-    const end = raw.lastIndexOf("]");
-    if (start === -1 || end === -1) throw new Error("Réponse invalide du modèle : " + raw);
-    sentences = JSON.parse(raw.slice(start, end + 1));
+    sentences = parseSentences(raw);
     currentIndex = 0;
 
     hideStatus("setup-status");
