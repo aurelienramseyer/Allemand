@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Coach Allemand Multi-IA (v1.2.0)</title>
+<title>Coach Allemand Multi-IA (v1.3.0)</title>
 <style>
   :root { --primary:#2563eb; --danger:#dc2626; --success:#16a34a; --bg:#f8fafc; --card:#fff; --text:#1e293b; }
   * { box-sizing:border-box; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
@@ -21,6 +21,7 @@
   .btn-record { background:var(--success); color:#fff; font-size:1.1rem; padding:18px; }
   .btn-record.recording { background:var(--danger); }
   .btn-secondary { background:#e2e8f0; color:var(--text); margin-top:10px; }
+  .btn-small { padding:9px; font-size:0.85rem; background:#eff6ff; color:var(--primary); border:1px solid #bfdbfe; margin-bottom:12px; }
   .progress { font-size:.85rem; color:#64748b; text-align:center; margin-bottom:8px; font-weight:600; }
   .sentence-box { font-size:1.2rem; font-weight:700; text-align:center; padding:18px 10px; background:#eff6ff; border-radius:12px; margin-bottom:16px; border:1px solid #bfdbfe; }
   .feedback-box { margin-top:16px; padding:14px; border-radius:12px; background:#f1f5f9; font-size:.95rem; line-height:1.5; white-space:pre-wrap; display:none; }
@@ -35,27 +36,12 @@
 <body>
 <div class="container">
   <h1>🇩🇪 Entraîneur Allemand Multi-IA</h1>
-  <div class="version-tag">Version 1.2.0</div>
+  <div class="version-tag">Version 1.3.0</div>
 
   <div id="setup-card" class="card">
-    <label for="model-select">Modèle d'IA :</label>
-    <select id="model-select" onchange="onModelChange()">
-      <optgroup label="GroqCloud (Ultra-rapide + Whisper Audio)">
-        <option value="groq|qwen/qwen3-32b">Qwen 3 32B (Groq)</option>
-        <option value="groq|llama-3.3-70b-versatile">Llama 3.3 70B (Groq)</option>
-        <option value="groq|openai/gpt-oss-120b">GPT-OSS 120B (Groq)</option>
-      </optgroup>
-      <optgroup label="Google AI Studio (Audio direct natif)">
-        <option value="gemini|auto">Gemini Auto (Détecte un modèle libre)</option>
-        <option value="gemini|gemini-3.8-flash-lite">Gemini 3.8 Flash-Lite</option>
-        <option value="gemini|gemini-3.8-pro">Gemini 3.8 Pro</option>
-      </optgroup>
-      <optgroup label="OpenRouter (:free + Whisper Groq)">
-        <option value="openrouter|deepseek/deepseek-chat-v3-0324:free">DeepSeek V3 (Gratuit)</option>
-        <option value="openrouter|deepseek/deepseek-r1:free">DeepSeek R1 (Gratuit)</option>
-        <option value="openrouter|z-ai/glm-4.5-air:free">GLM-4 Air (Gratuit)</option>
-        <option value="openrouter|nvidia/llama-3.1-nemotron-70b-instruct:free">NVIDIA Nemotron 70B (Gratuit)</option>
-      </optgroup>
+    <label for="model-select">Modèles réellement disponibles sur vos clés :</label>
+    <select id="model-select" onchange="localStorage.setItem('selected_model', this.value)">
+      <option value="">Chargement des modèles actifs...</option>
     </select>
 
     <div class="link-btn" onclick="document.getElementById('keys-panel').classList.toggle('hidden')">🔑 Gérer mes clés API</div>
@@ -63,10 +49,11 @@
     <div id="keys-panel" class="keys-box">
       <label for="key-groq">Clé API GroqCloud (gsk_...) :</label>
       <input type="password" id="key-groq" placeholder="Collez votre clé Groq">
-      <label for="key-gemini">Clé API Google AI Studio (AIza...) :</label>
+      <label for="key-gemini">Clé API Google AI Studio (AIza... ou AQ...) :</label>
       <input type="password" id="key-gemini" placeholder="Collez votre clé Gemini">
       <label for="key-openrouter">Clé API OpenRouter (sk-or-...) :</label>
       <input type="password" id="key-openrouter" placeholder="Collez votre clé OpenRouter">
+      <button type="button" class="btn-small" onclick="refreshAllModels()">🔄 Enregistrer les clés & Actualiser les modèles</button>
     </div>
 
     <label for="prompt-input">Votre consigne de génération :</label>
@@ -88,7 +75,7 @@
 </div>
 
 <script>
-let sentences = [], currentIndex = 0, mediaRecorder = null, audioChunks = [], isRecording = false;
+let sentences = [], currentIndex = 0, mediaRecorder = null, audioChunks = [], isRecording = false, whisperModel = "whisper-large-v3";
 
 function showStatus(id, msg, isError = false) {
   const el = document.getElementById(id);
@@ -98,20 +85,7 @@ function showStatus(id, msg, isError = false) {
 }
 function hideStatus(id) { document.getElementById(id).style.display = "none"; }
 
-function loadSavedData() {
-  const m = localStorage.getItem("selected_model");
-  if (m) document.getElementById("model-select").value = m;
-  ["groq", "gemini", "openrouter"].forEach(k => {
-    const val = localStorage.getItem("key_" + k);
-    if (val) document.getElementById("key-" + k).value = val;
-  });
-  if (localStorage.getItem("key_groq") || localStorage.getItem("key_gemini")) {
-    document.getElementById("keys-panel").classList.add("hidden");
-  }
-}
-
 function saveData() {
-  localStorage.setItem("selected_model", document.getElementById("model-select").value);
   const keys = {};
   ["groq", "gemini", "openrouter"].forEach(k => {
     const v = document.getElementById("key-" + k).value.trim();
@@ -121,20 +95,100 @@ function saveData() {
   return keys;
 }
 
-function onModelChange() { localStorage.setItem("selected_model", document.getElementById("model-select").value); }
+// Détection dynamique des modèles réellement actifs sur chaque API
+async function refreshAllModels() {
+  const keys = saveData();
+  const select = document.getElementById("model-select");
+  const prevChoice = localStorage.getItem("selected_model");
+  select.innerHTML = "<option value=''>Recherche des modèles actifs...</option>";
+  let totalAdded = 0;
 
-async function findGeminiModel(apiKey) {
-  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  const list = (data.models || []).filter(m => m.name.includes("flash") && !m.name.includes("1.5") && !m.name.includes("2.0") && m.supportedGenerationMethods?.includes("generateContent"));
-  const chosen = list[list.length - 1] || (data.models || []).find(m => m.supportedGenerationMethods?.includes("generateContent"));
-  if (!chosen) throw new Error("Aucun modèle Gemini disponible.");
-  return chosen.name.replace("models/", "");
+  // 1. Modèles Groq actifs
+  if (keys.groq) {
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/models", { headers: { "Authorization": "Bearer " + keys.groq } });
+      const data = await res.json();
+      if (data.data) {
+        const w = data.data.find(m => m.id.includes("whisper"));
+        if (w) whisperModel = w.id;
+        const chatModels = data.data.filter(m => !m.id.includes("whisper") && !m.id.includes("guard") && !m.id.includes("tts"));
+        if (chatModels.length) {
+          const grp = document.createElement("optgroup");
+          grp.label = "GroqCloud (Ultra-rapide + Whisper)";
+          chatModels.forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = "groq|" + m.id;
+            opt.textContent = m.id + " (Groq)";
+            grp.appendChild(opt);
+            totalAdded++;
+          });
+          select.appendChild(grp);
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 2. Modèles Gemini actifs
+  if (keys.gemini) {
+    try {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${keys.gemini}`);
+      const data = await res.json();
+      if (data.models) {
+        const gemModels = data.models.filter(m => m.supportedGenerationMethods?.includes("generateContent") && m.name.includes("gemini"));
+        if (gemModels.length) {
+          const grp = document.createElement("optgroup");
+          grp.label = "Google Gemini (Audio direct natif)";
+          gemModels.forEach(m => {
+            const cleanId = m.name.replace("models/", "");
+            const opt = document.createElement("option");
+            opt.value = "gemini|" + cleanId;
+            opt.textContent = (m.displayName || cleanId);
+            grp.appendChild(opt);
+            totalAdded++;
+          });
+          select.appendChild(grp);
+        }
+      }
+    } catch (e) {}
+  }
+
+  // 3. Modèles gratuits OpenRouter (:free)
+  if (keys.openrouter) {
+    try {
+      const res = await fetch("https://openrouter.ai/api/v1/models", { headers: { "Authorization": "Bearer " + keys.openrouter } });
+      const data = await res.json();
+      if (data.data) {
+        const freeModels = data.data.filter(m => m.id.endsWith(":free"));
+        if (freeModels.length) {
+          const grp = document.createElement("optgroup");
+          grp.label = "OpenRouter (Modèles :free + Whisper Groq)";
+          freeModels.forEach(m => {
+            const opt = document.createElement("option");
+            opt.value = "openrouter|" + m.id;
+            opt.textContent = m.name.replace(" (free)", "") + " (Gratuit)";
+            grp.appendChild(opt);
+            totalAdded++;
+          });
+          select.appendChild(grp);
+        }
+      }
+    } catch (e) {}
+  }
+
+  if (totalAdded > 0) {
+    select.remove(0); // Retire "Recherche..."
+    if (prevChoice && [...select.options].some(o => o.value === prevChoice)) select.value = prevChoice;
+    localStorage.setItem("selected_model", select.value);
+    document.getElementById("keys-panel").classList.add("hidden");
+    showStatus("setup-status", `${totalAdded} modèles actifs détectés sur vos clés !`);
+    setTimeout(() => hideStatus("setup-status"), 2500);
+  } else {
+    select.innerHTML = "<option value=''>Aucun modèle trouvé — Vérifiez vos clés</option>";
+    document.getElementById("keys-panel").classList.remove("hidden");
+  }
 }
 
 async function callGemini(model, apiKey, text, audioB64 = null, audioMime = null) {
-  if (model === "auto") model = await findGeminiModel(apiKey);
   const parts = [{ text }];
   if (audioB64) parts.push({ inline_data: { mime_type: audioMime, data: audioB64 } });
   const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
@@ -161,7 +215,7 @@ async function callOpenAI(url, apiKey, model, text) {
 async function transcribeGroq(blob, groqKey) {
   const fd = new FormData();
   fd.append("file", blob, "audio.webm");
-  fd.append("model", "whisper-large-v3");
+  fd.append("model", whisperModel);
   fd.append("language", "de");
   const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
     method: "POST",
@@ -176,12 +230,15 @@ async function transcribeGroq(blob, groqKey) {
 document.getElementById("generate-btn").addEventListener("click", async () => {
   hideStatus("setup-status");
   const keys = saveData();
-  const [provider, model] = document.getElementById("model-select").value.split("|");
+  const val = document.getElementById("model-select").value;
+  if (!val) return showStatus("setup-status", "Veuillez sélectionner un modèle.", true);
+  const [provider, model] = val.split("|");
   const userPrompt = document.getElementById("prompt-input").value.trim();
 
-  if (provider === "groq" && !keys.groq) { document.getElementById("keys-panel").classList.remove("hidden"); return showStatus("setup-status", "Clé Groq manquante.", true); }
-  if (provider === "gemini" && !keys.gemini) { document.getElementById("keys-panel").classList.remove("hidden"); return showStatus("setup-status", "Clé Gemini manquante.", true); }
-  if (provider === "openrouter" && (!keys.openrouter || !keys.groq)) { document.getElementById("keys-panel").classList.remove("hidden"); return showStatus("setup-status", "Clés OpenRouter et Groq requises.", true); }
+  if (provider === "openrouter" && !keys.groq) {
+    document.getElementById("keys-panel").classList.remove("hidden");
+    return showStatus("setup-status", "La clé Groq est aussi requise pour la transcription vocale Whisper.", true);
+  }
 
   const btn = document.getElementById("generate-btn");
   btn.disabled = true;
@@ -293,7 +350,12 @@ async function evaluateAudio(blob, mime) {
   }
 }
 
-loadSavedData();
+// Chargement initial
+["groq", "gemini", "openrouter"].forEach(k => {
+  const val = localStorage.getItem("key_" + k);
+  if (val) document.getElementById("key-" + k).value = val;
+});
+refreshAllModels();
 </script>
 </body>
 </html>
